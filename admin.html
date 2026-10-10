@@ -23,6 +23,8 @@ a{color:#a61e3c}#menu{display:none;flex-direction:column;gap:8px;margin-bottom:1
 #ed{position:fixed;inset:0;background:#000a;overflow:auto;z-index:10;padding:12px}.mod{background:#f6f1f1;border-radius:12px;padding:14px;max-width:560px;margin:0 auto}
 .mod label{display:block;margin:10px 0 4px;font-weight:700}.mod button{margin-top:8px;width:100%}.it .rm{width:100%;margin-top:6px}
 @media(min-width:800px){#app:not([hidden]){display:grid;grid-template-columns:190px 1fr;gap:16px}#menu{display:flex}main{max-width:1100px}#burger{display:none!important}}
+.barv{background:#eee;border-radius:6px;height:10px;margin:6px 0}.barv i{display:block;height:100%;background:#a61e3c;border-radius:6px}
+.pu4{display:grid;grid-template-columns:52px 1fr 1fr 48px;gap:6px;align-items:center;margin:6px 0}.pu4 button{padding:0;min-height:48px}
 [hidden]{display:none!important}ul{margin:6px 0;padding-left:20px}
 </style></head><body>
 <header><h1>Painel · Barraca do Prando</h1><span><button id="burger" class="sec" hidden aria-label="Menu">☰ Menu</button> <button id="sair" class="sec" hidden>Sair</button></span></header>
@@ -32,7 +34,7 @@ a{color:#a61e3c}#menu{display:none;flex-direction:column;gap:8px;margin-bottom:1
 <label>Senha<input id="pw" type="password" autocomplete="current-password"></label><br>
 <p id="le" class="erro" hidden></p><button id="entrar" style="width:100%">Entrar</button></section>
 <div id="app" hidden>
-<nav id="menu"><button id="n-pedidos" class="on">📋 Pedidos</button><button id="n-produtos">🥩 Produtos</button><small>Em breve: Clientes e Resultados</small></nav>
+<nav id="menu"><button id="n-pedidos" class="on">📋 Pedidos</button><button id="n-produtos">🥩 Produtos</button><button id="n-clientes">👥 Clientes</button><button id="n-resultados">📈 Resultados</button></nav>
 <div id="conteudo"><p id="gerr" class="erro" hidden></p>
 <section id="v-pedidos"><div class="barra"><button id="novoped">+ Novo pedido (balcão)</button><button id="apagatudo" class="sec">Apagar histórico</button></div>
 <div class="filtros"><input id="busca" placeholder="Buscar por nome ou telefone" aria-label="Buscar">
@@ -41,7 +43,12 @@ a{color:#a61e3c}#menu{display:none;flex-direction:column;gap:8px;margin-bottom:1
 <p id="resu"></p><div id="tot" class="tot"></div></div>
 <p id="err" class="erro" hidden></p><div id="lista"></div></section>
 <section id="v-produtos" hidden><div class="barra"><button id="novoprod">+ Novo produto</button></div>
-<p>Mudar um preço vale para os <b>próximos</b> pedidos. Pedidos já feitos mantêm o preço da época.</p><div id="lprods"></div></section></div></div>
+<p>Mudar um preço vale para os <b>próximos</b> pedidos. Pedidos já feitos mantêm o preço da época.</p><div id="lprods"></div></section>
+<section id="v-clientes" hidden><div class="barra"><button id="novocli">+ Novo cliente</button></div><h2>Clientes cadastrados</h2><div id="lclientes"></div>
+<h2>Já compraram mais de uma vez</h2><p class="dica">Quem repetiu pedido (pelo telefone) e ainda não está cadastrado.</p><div id="lrec"></div></section>
+<section id="v-resultados" hidden><h2>Vendas por feira</h2><div id="lres"></div>
+<small>Vendas = pedidos não cancelados, já com descontos. * lucro só dos itens com custo cadastrado, usando o custo atual.</small>
+<p id="dicares" class="dica">Para ver o lucro, cadastre o custo de cada produto na aba Produtos.</p><h2>Produtos que mais vendem</h2><div id="lprodv"></div></section></div></div>
 </main>
 <div id="ed" hidden><div class="mod"><h2 id="edt"></h2>
 <label>Nome<input id="en" maxlength="80"></label><label>Telefone<input id="et" inputmode="numeric" maxlength="20"></label>
@@ -93,14 +100,14 @@ $("#entrar").onclick=async()=>{
 async function abrir(){
   $("#login").hidden=true;$("#app").hidden=false;$("#sair").hidden=false;$("#burger").hidden=false;
   $("#fs").innerHTML='<option value="">Todos os status</option>'+ST.map(s=>`<option>${s}</option>`).join("");
-  await carregar();await carregarProds();
+  await carregar();await carregarProds();await carregarClientes();
 }
 async function carregar(){
   try{dados=await api("/rest/v1/encomendas?select=*,itens_encomenda(*)&order=id.desc&limit=1000");$("#err").hidden=true;
     const ds=[...new Set(dados.map(o=>o.retirada).filter(Boolean))].sort().reverse();
     const atual=$("#fd").value;
     $("#fd").innerHTML='<option value="">Todas as datas</option>'+ds.map(d=>`<option value="${d}">${d.split("-").reverse().join("/")}</option>`).join("");$("#fd").value=atual;
-    desenhar();
+    desenhar();rendClientes();rendRes();
   }catch(x){$("#err").textContent=x.message;$("#err").hidden=false}
 }
 function desenhar(){
@@ -111,13 +118,13 @@ function desenhar(){
   $("#resu").innerHTML=`${ativos.length} pedidos ativos · <strong>${pend} pendentes</strong> · ${porData.length-ativos.length} cancelados (fora dos totais)`;
   $("#tot").innerHTML=Object.keys(m).sort().map(k=>{const[n,u]=k.split("|");return`<span>${esc(n)}</span><b>${fq(m[k])} ${rot(u,m[k])}</b>`}).join("")||"<span>Nenhuma encomenda.</span>";
   const vis=porData.filter(o=>(!fs||o.status===fs)&&(!q||o.nome.toLowerCase().includes(q)||(qd&&(o.telefone||"").includes(qd))));
-  $("#lista").innerHTML=vis.map(o=>{const tot=o.itens_encomenda.reduce((s,i)=>s+i.quantidade*i.preco_unit,0);
+  $("#lista").innerHTML=vis.map(o=>{const tot=totPed(o),dsc=descDe(o.telefone);
     const tel=o.telefone?`<a href="tel:${esc(o.telefone)}">${esc(o.telefone)}</a> · <a href="https://wa.me/55${esc(o.telefone.replace(/^55/,""))}" target="_blank" rel="noopener">WhatsApp</a>`:"sem telefone";
     return`<div class="box ${o.status==="pendente"?"pend":""} ${o.status==="cancelado"?"canc":""}"><div class="topo"><strong>#${o.id} · ${esc(o.nome)}</strong>
     <select data-id="${o.id}" aria-label="Status do pedido ${o.id}">${ST.map(s=>`<option${s===o.status?" selected":""}>${s}</option>`).join("")}</select></div>
     <div>${tel}<br>Retirada: ${o.retirada?o.retirada.split("-").reverse().join("/"):"sem data"} · feito em ${new Date(o.criado_em).toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo"})}</div>
     <ul>${o.itens_encomenda.map(i=>`<li>${esc(i.nome_produto)}: ${fq(i.quantidade)} ${rot(i.unidade,i.quantidade)}</li>`).join("")}</ul>
-    ${o.obs?`<div>Recado: ${esc(o.obs)}</div>`:""}<div><strong>R$ ${brl(tot)}</strong></div><div class="acoes"><button class="sec" data-ed="${o.id}">Editar</button><button class="sec" data-ex="${o.id}">Excluir</button></div></div>`}).join("")||'<p class="box">Nenhum pedido encontrado.</p>';
+    ${o.obs?`<div>Recado: ${esc(o.obs)}</div>`:""}<div><strong>R$ ${brl(tot)}</strong>${dsc?` <small>(desconto de ${fq(dsc)}%)</small>`:""}</div><div class="acoes"><button class="sec" data-ed="${o.id}">Editar</button><button class="sec" data-ex="${o.id}">Excluir</button></div></div>`}).join("")||'<p class="box">Nenhum pedido encontrado.</p>';
 }
 $("#lista").onchange=async e=>{const s=e.target.closest("select");if(!s)return;
   if(s.value==="cancelado"&&!confirm("Cancelar este pedido? Ele continua no histórico, mas sai dos totais."))return carregar();
@@ -154,7 +161,7 @@ async function gerarPdf(PDFLib,v,agora){
     txt("Tel.: "+(o.telefone||"não informado")+" | Retirada: "+dt(o.retirada)+" | Feito em "+new Date(o.criado_em).toLocaleDateString("pt-BR",{timeZone:"America/Sao_Paulo"}),{s:9,c:CI});
     o.itens_encomenda.forEach(i=>txt("- "+i.nome_produto+": "+fq(i.quantidade)+" "+rot(i.unidade,i.quantidade),{x:M+10,s:10,c:canc?CI:TX}));
     if(o.obs)txt("Recado: "+o.obs,{x:M+10,s:9,c:CI});
-    txt("Total: R$ "+brl(o.itens_encomenda.reduce((s,i)=>s+i.quantidade*i.preco_unit,0)),{x:M+10,s:9,f:B,c:canc?CI:TX});y-=6});
+    txt("Total: R$ "+brl(totPed(o)),{x:M+10,s:9,f:B,c:canc?CI:TX});y-=6});
   const ps=doc.getPages();ps.forEach((p,i)=>p.drawText("Página "+(i+1)+" de "+ps.length,{x:W-M-70,y:20,size:8,font:F,color:CI}));
   return doc.save();
 }
@@ -165,14 +172,16 @@ $("#pdf").onclick=async()=>{try{const bytes=await gerarPdf(PDFLib,visao(),new Da
 const ea=t=>esc(t).replace(/"/g,"&quot;"),num=v=>Number(String(v).trim().replace(",",".")),UN=["kg","g","un","pote","pacote","litro"];
 let prods=[],edId=null,edItens=[];
 function erroGeral(m){$("#gerr").textContent=m;$("#gerr").hidden=!m;window.scrollTo(0,0)}
-function aba(v){["pedidos","produtos"].forEach(x=>{$("#v-"+x).hidden=x!==v;$("#n-"+x).classList.toggle("on",x===v)});$("#menu").classList.remove("abre");erroGeral("")}
-$("#n-pedidos").onclick=()=>aba("pedidos");$("#n-produtos").onclick=()=>aba("produtos");$("#burger").onclick=()=>$("#menu").classList.toggle("abre");
+function aba(v){["pedidos","produtos","clientes","resultados"].forEach(x=>{$("#v-"+x).hidden=x!==v;$("#n-"+x).classList.toggle("on",x===v)});$("#menu").classList.remove("abre");erroGeral("")}
+$("#n-pedidos").onclick=()=>aba("pedidos");$("#n-produtos").onclick=()=>aba("produtos");$("#n-clientes").onclick=()=>aba("clientes");$("#n-resultados").onclick=()=>aba("resultados");$("#burger").onclick=()=>$("#menu").classList.toggle("abre");
 async function carregarProds(){try{prods=await api("/rest/v1/produtos?select=*,produto_unidades(*)&order=ordem.asc,nome.asc");rendProds()}catch(x){erroGeral(x.message)}}
-function rendProds(){$("#lprods").innerHTML=prods.map(p=>`<div class="box ${p.ativo?"":"canc"}"><div class="topo"><strong>${esc(p.nome)}</strong><span>${p.ativo?"À venda":"Desativado"}</span></div>`+
- p.produto_unidades.sort((a,b)=>a.unidade<b.unidade?-1:1).map(u=>`<div class="pu"><span>Preço por ${rot(u.unidade,1)}</span><input value="${brl(Number(u.preco))}" inputmode="decimal" data-pr="${p.id}|${u.unidade}" aria-label="Preço por ${rot(u.unidade,1)} de ${ea(p.nome)}"><button class="sec" data-du="${p.id}|${u.unidade}">Remover</button></div>`).join("")+
+function rendProds(){$("#lprods").innerHTML=prods.map(p=>`<div class="box ${p.ativo?"":"canc"}"><div class="topo"><strong>${esc(p.nome)}</strong><span>${p.ativo?"À venda":"Desativado"}</span></div><small>Unidade · Preço de venda (R$) · Custo (R$, opcional)</small>`+
+ p.produto_unidades.sort((a,b)=>a.unidade<b.unidade?-1:1).map(u=>`<div class="pu4"><span>${rot(u.unidade,1)}</span><input value="${brl(Number(u.preco))}" inputmode="decimal" data-pr="${p.id}|${u.unidade}" aria-label="Preço por ${rot(u.unidade,1)} de ${ea(p.nome)}"><input value="${u.custo==null?"":brl(Number(u.custo))}" inputmode="decimal" placeholder="Custo" data-cu="${p.id}|${u.unidade}" aria-label="Custo por ${rot(u.unidade,1)} de ${ea(p.nome)}"><button class="sec" data-du="${p.id}|${u.unidade}" aria-label="Remover unidade">✕</button></div>`).join("")+
  `<div class="acoes"><button class="sec" data-pn="${p.id}">Renomear</button><button class="sec" data-pa="${p.id}">${p.ativo?"Desativar":"Reativar"}</button><button class="sec" data-pu="${p.id}">+ Unidade</button><button class="sec" data-px="${p.id}">Excluir</button></div></div>`).join("")||"<p>Nenhum produto.</p>"}
 const pedePreco=(un)=>{const s=prompt("Preço por "+rot(un,1)+" (R$), ex.: 20,50");if(s===null)return null;const n=num(s);if(!s.trim()||!isFinite(n)||n<0||n>9999){alert("Preço inválido.");return null}return n};
-$("#lprods").onchange=async e=>{const i=e.target.closest("input[data-pr]");if(!i)return;const[id,un]=i.dataset.pr.split("|"),n=num(i.value);
+$("#lprods").onchange=async e=>{const c=e.target.closest("input[data-cu]");if(c){const[id,un]=c.dataset.cu.split("|"),s=c.value.trim(),n=s?num(s):null;if(s&&(!isFinite(n)||n<0||n>9999)){erroGeral("Custo inválido.");return rendProds()}
+  try{await api(`/rest/v1/produto_unidades?produto_id=eq.${id}&unidade=eq.${un}`,{method:"PATCH",body:JSON.stringify({custo:n})});erroGeral("");await carregarProds();rendRes()}catch(x){erroGeral(x.message+" (você rodou o SQL da Rodada 3?)")}return}
+  const i=e.target.closest("input[data-pr]");if(!i)return;const[id,un]=i.dataset.pr.split("|"),n=num(i.value);
   if(!isFinite(n)||n<0||n>9999||!i.value.trim()){erroGeral("Preço inválido.");return rendProds()}
   try{await api(`/rest/v1/produto_unidades?produto_id=eq.${id}&unidade=eq.${un}`,{method:"PATCH",body:JSON.stringify({preco:n})});erroGeral("");await carregarProds()}catch(x){erroGeral(x.message)}};
 $("#lprods").onclick=async e=>{const b=e.target.closest("button");if(!b)return;const d=b.dataset,A=(u,o)=>api("/rest/v1/"+u,o);
@@ -220,6 +229,37 @@ $("#lista").onclick=async e=>{const b=e.target.closest("button");if(!b)return;
  if(b.dataset.ex&&confirm("EXCLUIR o pedido #"+b.dataset.ex+" de vez? Não dá para desfazer. (Para só tirar dos totais, use o status cancelado.)")){try{await api("/rest/v1/encomendas?id=eq."+b.dataset.ex,{method:"DELETE"});await carregar()}catch(x){erroGeral(x.message)}}};
 $("#apagatudo").onclick=async()=>{if(!confirm("Apagar TODOS os pedidos, inclusive entregues e cancelados? Se quiser uma cópia, baixe o PDF antes."))return;if(prompt("Para confirmar, digite APAGAR:")!=="APAGAR")return;
  try{await api("/rest/v1/encomendas?id=gt.0",{method:"DELETE"});await carregar()}catch(x){erroGeral(x.message)}};
+
+let clientes=[];
+const dig=t=>String(t||"").replace(/\D/g,"").replace(/^55(?=\d{10,11}$)/,"");
+const fmtTel=t=>{t=dig(t);return t.length===11?`(${t.slice(0,2)}) ${t.slice(2,7)}-${t.slice(7)}`:t.length===10?`(${t.slice(0,2)}) ${t.slice(2,6)}-${t.slice(6)}`:t};
+const descDe=t=>{const k=dig(t),c=k&&clientes.find(c=>c.telefone===k);return c?Number(c.desconto):0};
+const totPed=o=>o.itens_encomenda.reduce((s,i)=>s+i.quantidade*i.preco_unit,0)*(1-descDe(o.telefone)/100);
+async function carregarClientes(){try{clientes=await api("/rest/v1/clientes?select=*&order=nome.asc")}catch(x){clientes=[];erroGeral("Clientes: "+x.message+" (você rodou o SQL da Rodada 3?)")}rendClientes();desenhar();rendRes()}
+function rendClientes(){
+ const cont={};dados.filter(o=>o.status!=="cancelado"&&dig(o.telefone)).forEach(o=>{const k=dig(o.telefone);(cont[k]=cont[k]||[]).push(o)});
+ const reg=new Set(clientes.map(c=>c.telefone)),rec=Object.entries(cont).filter(([k,v])=>v.length>=2&&!reg.has(k));
+ $("#lclientes").innerHTML=clientes.map(c=>`<div class="box"><div class="topo"><strong>${esc(c.nome)}</strong><span>${fmtTel(c.telefone)}</span></div><div>Desconto: <b>${fq(c.desconto)}%</b> · ${(cont[c.telefone]||[]).length} pedidos</div><div class="acoes"><button class="sec" data-ce="${c.id}">Editar</button><button class="sec" data-cx="${c.id}">Excluir</button></div></div>`).join("")||"<p>Nenhum cliente cadastrado.</p>";
+ $("#lrec").innerHTML=rec.map(([k,v])=>{const u=v.slice().sort((a,b)=>b.id-a.id)[0];return`<div class="box"><div class="topo"><strong>${esc(u.nome)}</strong><span>${fmtTel(k)}</span></div><div>${v.length} pedidos</div><div class="acoes"><button data-cc="${k}" data-nome="${ea(u.nome)}">Cadastrar cliente</button></div></div>`}).join("")||"<p>Ninguém repetiu pedido ainda, ou já estão cadastrados.</p>"}
+$("#v-clientes").onclick=async e=>{const b=e.target.closest("button");if(!b)return;const d=b.dataset;
+ try{if(d.cc)await api("/rest/v1/clientes",{method:"POST",body:JSON.stringify({nome:d.nome,telefone:d.cc,desconto:0})});
+  else if(d.cx){const c=clientes.find(x=>x.id==d.cx);if(!confirm("Excluir "+c.nome+" da lista de clientes? Os pedidos dele não são apagados."))return;await api("/rest/v1/clientes?id=eq."+c.id,{method:"DELETE"})}
+  else if(d.ce||b.id==="novocli"){const c=d.ce?clientes.find(x=>x.id==d.ce):null;
+   const nome=(prompt("Nome completo:",c?c.nome:"")||"").trim();if(nome.length<2)return;
+   const t=dig(prompt("Telefone com DDD:",c?c.telefone:"")||"");if(t.length<10||t.length>11)return alert("Telefone inválido. Use DDD + número.");
+   const ds=prompt("Desconto em % (0 a 100):",c?String(c.desconto):"0");if(ds===null)return;const n=num(ds);if(!isFinite(n)||n<0||n>100)return alert("Desconto inválido.");
+   const body=JSON.stringify({nome,telefone:t,desconto:n});if(c)await api("/rest/v1/clientes?id=eq."+c.id,{method:"PATCH",body});else await api("/rest/v1/clientes",{method:"POST",body})}
+  else return;erroGeral("");await carregarClientes()}catch(x){erroGeral(/duplicate|unique/i.test(x.message)?"Já existe um cliente com esse telefone.":x.message)}};
+function rendRes(){
+ const ok=dados.filter(o=>o.status!=="cancelado"),custoDe=i=>{const p=prods.find(x=>x.id===i.produto_id),u=p&&p.produto_unidades.find(x=>x.unidade===i.unidade);return u&&u.custo!=null?Number(u.custo):null};
+ const g={},pr={};ok.forEach(o=>{const f=1-descDe(o.telefone)/100,k=o.retirada||"sem",r=g[k]=g[k]||{n:0,v:0,l:0,com:0,tot:0};r.n++;
+  o.itens_encomenda.forEach(i=>{const v=i.quantidade*i.preco_unit*f;r.v+=v;r.tot++;const c=custoDe(i);if(c!=null){r.l+=v-i.quantidade*c;r.com++}
+   const kk=i.nome_produto+"|"+i.unidade,p=pr[kk]=pr[kk]||{q:0,v:0};p.q+=Number(i.quantidade);p.v+=v})});
+ const ks=Object.keys(g).filter(k=>k!=="sem").sort().reverse().slice(0,8),max=Math.max(1,...ks.map(k=>g[k].v));
+ $("#lres").innerHTML=ks.map((k,x)=>{const r=g[k],ant=ks[x+1]?g[ks[x+1]].v:0,va=ant?(r.v-ant)/ant*100:null;
+  return`<div class="box"><div class="topo"><strong>Feira de ${k.split("-").reverse().join("/")}</strong><span>${r.n} pedidos</span></div><div class="barv"><i style="width:${r.v/max*100}%"></i></div><div><b>R$ ${brl(r.v)}</b>${va==null?"":` <span style="color:${va>=0?"#1f6b4a":"#a61e3c"}">${va>=0?"▲":"▼"} ${Math.abs(va).toFixed(0)}% vs. feira anterior</span>`}</div>${r.com?`<div>Lucro: <b>R$ ${brl(r.l)}</b>${r.com<r.tot?" *":""}</div>`:""}</div>`}).join("")||"<p>Ainda não há pedidos com data de retirada.</p>";
+ $("#lprodv").innerHTML=Object.entries(pr).sort((a,b)=>b[1].v-a[1].v).slice(0,8).map(([k,r])=>{const[n,u]=k.split("|");return`<div class="pu" style="grid-template-columns:1fr auto auto"><span>${esc(n)}</span><span>${fq(r.q)} ${rot(u,r.q)}</span><b>R$ ${brl(r.v)}</b></div>`}).join("")||"<p>Sem dados.</p>";
+ $("#dicares").hidden=prods.some(p=>p.produto_unidades.some(u=>u.custo!=null))}
 $("#pw").addEventListener("keydown",e=>{if(e.key==="Enter")$("#entrar").click()});
 if(tok)abrir();
 </script></body></html>
