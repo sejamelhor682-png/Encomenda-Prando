@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#a61e3c">
+<title>Encomendas</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header><h1 id="titulo">Encomendas</h1><p>Carnes e derivados suínos. Feira aos sábados, das 3h às 11h30.</p></header>
+<div id="demo" class="demo" hidden>Modo demonstração: nada é salvo.</div>
+<main>
+<section id="p1">
+  <h2>1. O que você quer?</h2>
+  <p class="dica">Toque em “Quero este” nos produtos que deseja.</p>
+  <div id="lista"></div>
+  <p id="erro1" class="erro" role="alert" hidden></p>
+  <div id="barra"><strong id="tot">Escolha os produtos</strong><button id="cont1" disabled>Continuar</button></div>
+</section>
+
+<section id="p2" hidden>
+  <button class="volta" data-volta="1">← Voltar</button>
+  <h2>2. Quando vai buscar?</h2>
+  <div id="dias" class="dias"></div>
+  <h2>3. Quem está pedindo?</h2>
+  <label for="nome">Seu nome</label>
+  <input id="nome" autocomplete="name" maxlength="80" placeholder="Digite seu nome">
+  <label for="tel">Telefone com DDD <span>(se quiser, para avisarmos)</span></label>
+  <input id="tel" type="tel" inputmode="numeric" autocomplete="tel" maxlength="20" placeholder="(27) 99999-9999">
+  <details><summary>Quer deixar um recado? (opcional)</summary>
+    <textarea id="obs" rows="3" maxlength="500" aria-label="Recado"></textarea></details>
+  <input id="site" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+  <p id="erro2" class="erro" role="alert" hidden></p>
+  <button id="cont2" class="grande">Continuar</button>
+</section>
+
+<section id="p3" hidden>
+  <button class="volta" data-volta="2">← Voltar</button>
+  <h2>Confira seu pedido</h2>
+  <div id="resumo" class="caixa"></div>
+  <p id="erro3" class="erro" role="alert" hidden></p>
+  <button id="confirmar" class="grande ok">Confirmar encomenda</button>
+</section>
+
+<section id="p4" hidden>
+  <h2>Encomenda recebida!</h2>
+  <p class="num">Número do seu pedido<br><strong id="numero"></strong></p>
+  <div id="resumo2" class="caixa"></div>
+  <p>Anote o número ou tire um print desta tela.</p>
+  <button id="nova" class="grande">Fazer outra encomenda</button>
+</section>
+</main>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex"><title>Painel</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f6f1f1;color:#2b2326;font:18px/1.4 system-ui,"Segoe UI",Roboto,sans-serif}
+header{background:#a61e3c;color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+header h1{margin:0;font-size:1.3rem}main{max-width:900px;margin:0 auto;padding:12px}
+input,select{width:100%;font:inherit;padding:14px;border:2px solid #b9a9ad;border-radius:10px;background:#fff}
+button{font:inherit;font-weight:700;min-height:48px;padding:0 16px;border:0;border-radius:10px;background:#a61e3c;color:#fff;cursor:pointer}
+button.sec{background:#fff;color:#a61e3c;border:2px solid #a61e3c}
+.box{background:#fff;border:2px solid #b9a9ad;border-radius:12px;padding:12px;margin-bottom:12px}
+.filtros{display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:12px}
+@media(min-width:700px){.filtros{grid-template-columns:2fr 1fr 1fr}}
+.tot{display:grid;grid-template-columns:1fr auto;gap:2px 12px}.tot b{text-align:right}
+.pend{background:#fff3c4;border-color:#d8a800}.canc{opacity:.55}
+.topo{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.erro{background:#fde8ec;border:2px solid #a61e3c;padding:10px;border-radius:10px;font-weight:600}
+a{color:#a61e3c}[hidden]{display:none!important}ul{margin:6px 0;padding-left:20px}
+</style></head><body>
+<header><h1>Painel · Barraca do Prando</h1><button id="sair" class="sec" hidden>Sair</button></header>
+<main>
+<section id="login" class="box"><h2>Entrar</h2>
+<label>E-mail<input id="em" type="email" autocomplete="username"></label><br><br>
+<label>Senha<input id="pw" type="password" autocomplete="current-password"></label><br>
+<p id="le" class="erro" hidden></p><button id="entrar" style="width:100%">Entrar</button></section>
+<section id="app" hidden>
+<div class="filtros"><input id="busca" placeholder="Buscar por nome ou telefone" aria-label="Buscar">
+<select id="fs" aria-label="Status"></select><select id="fd" aria-label="Data de retirada"></select></div>
+<div class="box"><div class="topo"><strong>Total para produzir</strong><button id="csv" class="sec">Baixar CSV</button></div>
+<p id="resu"></p><div id="tot" class="tot"></div></div>
+<p id="err" class="erro" hidden></p><div id="lista"></div></section>
+</main>
+<script src="config.js"></script>
+<script>
+const C=window.CONFIG,$=s=>document.querySelector(s);
+const ST=["pendente","confirmado","separado","entregue","cancelado"];
+const ROT={kg:["kg","kg"],g:["g","g"],un:["unidade","unidades"],pote:["pote","potes"],pacote:["pacote","pacotes"],litro:["litro","litros"]};
+const rot=(u,q)=>ROT[u]?ROT[u][q==1?0:1]:u,fq=q=>String(Number(q)).replace(".",","),brl=n=>n.toFixed(2).replace(".",",");
+const esc=t=>{const d=document.createElement("div");d.textContent=t??"";return d.innerHTML};
+let tok=null,dados=[];
+try{tok=sessionStorage.getItem("tk")}catch(e){}
+async function api(path,opt={}){
+  const r=await fetch(C.SUPABASE_URL+path,{...opt,headers:{apikey:C.SUPABASE_ANON_KEY,"Content-Type":"application/json",...(tok?{Authorization:"Bearer "+tok}:{}),...(opt.headers||{})}});
+  if(r.status===401){sair();throw new Error("Sessão expirada. Entre de novo.")}
+  if(!r.ok){let m="Erro "+r.status;try{m=(await r.json()).message||m}catch(e){}throw new Error(m)}
+  return r.status===204?null:r.json();
+}
+function sair(){tok=null;try{sessionStorage.removeItem("tk")}catch(e){}$("#login").hidden=false;$("#app").hidden=true;$("#sair").hidden=true}
+$("#sair").onclick=sair;
+$("#entrar").onclick=async()=>{
+  $("#le").hidden=true;
+  try{const r=await fetch(C.SUPABASE_URL+"/auth/v1/token?grant_type=password",{method:"POST",headers:{apikey:C.SUPABASE_ANON_KEY,"Content-Type":"application/json"},body:JSON.stringify({email:$("#em").value.trim(),password:$("#pw").value})});
+    const j=await r.json();if(!r.ok)throw new Error("E-mail ou senha incorretos.");
+    tok=j.access_token;try{sessionStorage.setItem("tk",tok)}catch(e){}$("#pw").value="";abrir();
+  }catch(x){$("#le").textContent=x.message;$("#le").hidden=false}
+};
+async function abrir(){
+  $("#login").hidden=true;$("#app").hidden=false;$("#sair").hidden=false;
+  $("#fs").innerHTML='<option value="">Todos os status</option>'+ST.map(s=>`<option>${s}</option>`).join("");
+  await carregar();
+}
+async function carregar(){
+  try{dados=await api("/rest/v1/encomendas?select=*,itens_encomenda(*)&order=id.desc&limit=1000");$("#err").hidden=true;
+    const ds=[...new Set(dados.map(o=>o.retirada).filter(Boolean))].sort().reverse();
+    const atual=$("#fd").value;
+    $("#fd").innerHTML='<option value="">Todas as datas</option>'+ds.map(d=>`<option value="${d}">${d.split("-").reverse().join("/")}</option>`).join("");$("#fd").value=atual;
+    desenhar();
+  }catch(x){$("#err").textContent=x.message;$("#err").hidden=false}
+}
+function desenhar(){
+  const q=$("#busca").value.toLowerCase().replace(/\s+/g," ").trim(),qd=q.replace(/\D/g,""),fs=$("#fs").value,fd=$("#fd").value;
+  const porData=dados.filter(o=>!fd||o.retirada===fd),ativos=porData.filter(o=>o.status!=="cancelado");
+  const m={};ativos.forEach(o=>o.itens_encomenda.forEach(i=>{const k=i.nome_produto+"|"+i.unidade;m[k]=(m[k]||0)+Number(i.quantidade)}));
+  const pend=ativos.filter(o=>o.status==="pendente").length;
+  $("#resu").innerHTML=`${ativos.length} pedidos ativos · <strong>${pend} pendentes</strong> · ${porData.length-ativos.length} cancelados (fora dos totais)`;
+  $("#tot").innerHTML=Object.keys(m).sort().map(k=>{const[n,u]=k.split("|");return`<span>${esc(n)}</span><b>${fq(m[k])} ${rot(u,m[k])}</b>`}).join("")||"<span>Nenhuma encomenda.</span>";
+  const vis=porData.filter(o=>(!fs||o.status===fs)&&(!q||o.nome.toLowerCase().includes(q)||(qd&&(o.telefone||"").includes(qd))));
+  $("#lista").innerHTML=vis.map(o=>{const tot=o.itens_encomenda.reduce((s,i)=>s+i.quantidade*i.preco_unit,0);
+    const tel=o.telefone?`<a href="tel:${esc(o.telefone)}">${esc(o.telefone)}</a> · <a href="https://wa.me/55${esc(o.telefone.replace(/^55/,""))}" target="_blank" rel="noopener">WhatsApp</a>`:"sem telefone";
+    return`<div class="box ${o.status==="pendente"?"pend":""} ${o.status==="cancelado"?"canc":""}"><div class="topo"><strong>#${o.id} · ${esc(o.nome)}</strong>
+    <select data-id="${o.id}" aria-label="Status do pedido ${o.id}">${ST.map(s=>`<option${s===o.status?" selected":""}>${s}</option>`).join("")}</select></div>
+    <div>${tel}<br>Retirada: ${o.retirada?o.retirada.split("-").reverse().join("/"):"sem data"} · feito em ${new Date(o.criado_em).toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo"})}</div>
+    <ul>${o.itens_encomenda.map(i=>`<li>${esc(i.nome_produto)}: ${fq(i.quantidade)} ${rot(i.unidade,i.quantidade)}</li>`).join("")}</ul>
+    ${o.obs?`<div>Recado: ${esc(o.obs)}</div>`:""}<div><strong>R$ ${brl(tot)}</strong></div></div>`}).join("")||'<p class="box">Nenhum pedido encontrado.</p>';
+}
+$("#lista").onchange=async e=>{const s=e.target.closest("select");if(!s)return;
+  if(s.value==="cancelado"&&!confirm("Cancelar este pedido? Ele continua no histórico, mas sai dos totais."))return carregar();
+  try{await api("/rest/v1/encomendas?id=eq."+s.dataset.id,{method:"PATCH",body:JSON.stringify({status:s.value,atualizado_em:new Date().toISOString()})});await carregar()}
+  catch(x){$("#err").textContent=x.message;$("#err").hidden=false}};
+["busca","fs","fd"].forEach(i=>$("#"+i).addEventListener("input",desenhar));
+$("#csv").onclick=()=>{
+  const cel=v=>{v=String(v??"");if(/^[=+\-@\t\r]/.test(v))v="'"+v;return'"'+v.replace(/"/g,'""')+'"'};
+  const L=[["pedido","status","cliente","telefone","retirada","produto","quantidade","unidade","preco_unit","obs","criado_em"]];
+  dados.forEach(o=>o.itens_encomenda.forEach(i=>L.push([o.id,o.status,o.nome,o.telefone,o.retirada,i.nome_produto,i.quantidade,i.unidade,i.preco_unit,o.obs,o.criado_em])));
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["\ufeff"+L.map(r=>r.map(cel).join(";")).join("\r\n")],{type:"text/csv"}));
+  a.download="encomendas.csv";a.click()};
+$("#pw").addEventListener("keydown",e=>{if(e.key==="Enter")$("#entrar").click()});
+if(tok)abrir();
+</script></body></html>
