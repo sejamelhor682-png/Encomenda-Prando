@@ -24,8 +24,10 @@
   <h2>2. Quando vai buscar?</h2>
   <div id="dias" class="dias"></div>
   <h2>3. Quem está pedindo?</h2>
-  <label for="nome">Seu nome</label>
-  <input id="nome" autocomplete="name" maxlength="80" placeholder="Digite seu nome">
+  <label for="nome">Nome completo</label>
+  <input id="nome" autocomplete="name" maxlength="55" placeholder="Nome e sobrenome">
+  <label for="apelido">Apelido <span>(se quiser, para a gente te reconhecer)</span></label>
+  <input id="apelido" maxlength="20" placeholder="Como te chamam por aí">
   <label for="tel">Telefone com DDD <span>(se quiser, para avisarmos)</span></label>
   <input id="tel" type="tel" inputmode="numeric" autocomplete="tel" maxlength="20" placeholder="(27) 99999-9999">
   <details><summary>Quer deixar um recado? (opcional)</summary>
@@ -44,10 +46,11 @@
 </section>
 
 <section id="p4" hidden>
-  <h2>Encomenda recebida!</h2>
+  <h2 id="obg">Obrigado pelo seu pedido!</h2>
   <p class="num">Número do seu pedido<br><strong id="numero"></strong></p>
   <div id="resumo2" class="caixa"></div>
   <p>Anote o número ou tire um print desta tela.</p>
+  <p id="contato" class="caixa" hidden></p>
   <button id="nova" class="grande">Fazer outra encomenda</button>
 </section>
 </main>

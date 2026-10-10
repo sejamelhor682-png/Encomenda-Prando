@@ -76,20 +76,29 @@ $("#dias").onclick = e => { const b = e.target.closest("button"); if (!b) return
 document.querySelectorAll(".volta").forEach(b => (b.onclick = () => ir(+b.dataset.volta)));
 $("#cont2").onclick = () => {
   if ($("#site").value) return;
-  const nome = $("#nome").value.trim(), tel = $("#tel").value.replace(/\D/g, "");
-  if (nome.length < 2) return erro("#erro2", "Digite o seu nome para continuar.");
+  const nome = $("#nome").value.trim().replace(/\s+/g, " "), apelido = $("#apelido").value.trim().replace(/\s+/g, " "), tel = $("#tel").value.replace(/\D/g, "");
+  const ps = nome.split(" ");
+  if (ps.length < 2 || ps[0].length < 2 || ps[ps.length - 1].length < 2) return erro("#erro2", "Digite o nome completo: nome e sobrenome.");
+  const nomeFinal = apelido && apelido.toLowerCase() !== nome.toLowerCase() ? `${nome} (${apelido})` : nome;
   if (C.TELEFONE_OBRIGATORIO && !tel) return erro("#erro2", "Informe um telefone.");
   if (tel && (tel.length < 10 || tel.length > 13)) return erro("#erro2", "Telefone incompleto. Digite com o DDD, ou deixe em branco.");
   erro("#erro2");
   const itens = produtos.filter(p => cart[p.id]).map(p => ({ produto_id: p.id, quantidade: cart[p.id].q, unidade: cart[p.id].u, nome: p.nome, valor: cart[p.id].q * preco(p, cart[p.id].u) }));
   if (!itens.length) return ir(1);
   const diaTxt = (document.querySelector(".dia.sel") || {}).dataset ? document.querySelector(".dia.sel").dataset.t : "";
-  pedido = { nome, tel, dia, diaTxt, obs: $("#obs").value.trim(), itens };
-  $("#resumo").innerHTML = `<p><strong>${esc(nome)}</strong>${tel ? "<br>" + esc($("#tel").value) : ""}<br>Retirada: ${esc(diaTxt)}</p>` + lista(itens) + (pedido.obs ? `<p>Recado: ${esc(pedido.obs)}</p>` : "");
+  pedido = { nome: nomeFinal, tel, dia, diaTxt, obs: $("#obs").value.trim(), itens };
+  $("#resumo").innerHTML = `<p><strong>${esc(nomeFinal)}</strong>${tel ? "<br>" + esc($("#tel").value) : ""}<br>Retirada: ${esc(diaTxt)}</p>` + lista(itens) + (pedido.obs ? `<p>Recado: ${esc(pedido.obs)}</p>` : "");
   ir(3);
 };
 function lista(itens) {
   return "<ul>" + itens.map(i => `<li><strong>${esc(i.nome)}</strong>: ${fq(i.quantidade)} ${rot(i.unidade, i.quantidade)} (R$ ${brl(i.valor)})</li>`).join("") + `</ul><p><strong>Total estimado: R$ ${brl(itens.reduce((s, i) => s + i.valor, 0))}</strong><br><small>Valor final confirmado na barraca.</small></p>`;
+}
+function contato() {
+  const t = String(C.TELEFONE_BARRACA || "").replace(/\D/g, ""), e = $("#contato");
+  if (t.length < 10) { e.hidden = true; return; }
+  const f = t.length >= 11 ? `(${t.slice(0, 2)}) ${t.slice(2, 7)}-${t.slice(7, 11)}` : `(${t.slice(0, 2)}) ${t.slice(2, 6)}-${t.slice(6, 10)}`;
+  e.innerHTML = `Precisa falar com a gente? Ligue ou chame no WhatsApp:<br><strong>${f}</strong><br><a href="tel:+55${t}">Ligar</a> · <a href="https://wa.me/55${t}" target="_blank" rel="noopener">WhatsApp</a>`;
+  e.hidden = false;
 }
 $("#confirmar").onclick = async function () {
   this.disabled = true; erro("#erro3");
@@ -99,11 +108,11 @@ $("#confirmar").onclick = async function () {
       const r = await rpc("criar_encomenda", { p_nome: pedido.nome, p_telefone: pedido.tel || null, p_retirada: pedido.dia || null, p_obs: pedido.obs || null, p_itens: pedido.itens.map(i => ({ produto_id: i.produto_id, quantidade: i.quantidade, unidade: i.unidade })) });
       numero = r.numero;
     }
-    $("#numero").textContent = numero; $("#resumo2").innerHTML = lista(pedido.itens); ir(4);
+    $("#numero").textContent = numero; $("#obg").textContent = "Obrigado pelo seu pedido, " + pedido.nome.split(" ")[0] + "!"; contato(); $("#resumo2").innerHTML = lista(pedido.itens); ir(4);
   } catch (x) { erro("#erro3", x.message); }
   this.disabled = false;
 };
-$("#nova").onclick = () => { cart = {}; dia = null; $("#nome").value = $("#tel").value = $("#obs").value = ""; $("#lista").innerHTML = produtos.map(cardHTML).join(""); desenhaDias(); barra(); ir(1); };
+$("#nova").onclick = () => { cart = {}; dia = null; $("#apelido").value = ""; $("#nome").value = $("#tel").value = $("#obs").value = ""; $("#lista").innerHTML = produtos.map(cardHTML).join(""); desenhaDias(); barra(); ir(1); };
 
 (async function init() {
   $("#titulo").textContent = C.NOME_BARRACA || "Encomendas";
