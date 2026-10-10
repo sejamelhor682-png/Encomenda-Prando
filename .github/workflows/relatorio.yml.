@@ -1,0 +1,29 @@
+name: Relatório semanal
+on:
+  schedule:
+    - cron: "0 9 * * 1"
+  workflow_dispatch:
+    inputs:
+      forcar:
+        description: "Enviar mesmo que já tenha sido enviado esta semana? (1 = sim)"
+        default: "0"
+permissions:
+  contents: read
+jobs:
+  enviar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install reportlab requests
+      - run: python gerar_e_enviar.py
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          ROBO_EMAIL: ${{ secrets.ROBO_EMAIL }}
+          ROBO_SENHA: ${{ secrets.ROBO_SENHA }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          FORCAR: ${{ github.event.inputs.forcar }}
