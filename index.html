@@ -10,7 +10,7 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header><h1 id="titulo" class="sr">Prando Carne Suína</h1><img src="logo-horizontal.png" alt="Prando Carne Suína" width="640" height="206"></header>
+<header><h1 id="titulo" class="sr">Prando Carne Suína</h1><a href="./" id="home" aria-label="Voltar ao início"><img src="logo-horizontal.png" alt="Prando Carne Suína" width="640" height="206"></a></header>
 <div class="faixa">Feira aos sábados, das 3h às 11h30</div>
 <div id="demo" class="demo" hidden>Modo demonstração: nada é salvo.</div>
 <main>
@@ -52,6 +52,9 @@
   <h2 id="obg">Obrigado pelo seu pedido!</h2>
   <p class="num">Número do seu pedido<br><strong id="numero"></strong></p>
   <div id="resumo2" class="caixa"></div>
+  <div id="local" class="caixa" hidden></div>
+  <button id="baixar" class="grande ok">Salvar comprovante do pedido</button>
+  <button id="compart" class="grande sec" hidden>Compartilhar comprovante</button>
   <p>Anote o número ou tire um print desta tela.</p>
   <p id="contato" class="caixa" hidden></p>
   <button id="nova" class="grande">Fazer outra encomenda</button>

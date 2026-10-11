@@ -3,6 +3,8 @@ window.CONFIG = {
   SUPABASE_URL: "https://tqjnxhhmbfyaoccbkcbn.supabase.co",        // ex.: https://abcdefgh.supabase.co
   SUPABASE_ANON_KEY: "sb_publishable_V8SvNmUWEdxF42xRZT8H-g_MNFt123w",   // chave anon / publishable
   NOME_BARRACA: "Barraca do Prando",
+  LOCAL_NOME: "Feira de Colatina",          // ex.: "Feira da Praça Central, banca 12" (aparece na tela final e no comprovante)
+  LOCAL_MAPS_URL: "https://maps.app.goo.gl/UZWZLjUcHy6VdWt78?g_st=ac",      // link do Google Maps da barraca (começa com https://)
   TELEFONE_BARRACA: "27999870210",    // telefone da barraca com DDD, ex.: "27999998888" (aparece na mensagem de agradecimento)
   FEIRA_DIA: 6,            // dia da feira: 0=domingo ... 6=sábado
   FEIRA_FIM_HORA: 12,      // depois dessa hora, "hoje" deixa de ser opção de retirada

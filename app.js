@@ -16,7 +16,7 @@ const fq = q => String(q).replace(".", ",");
 const esc = t => { const d = document.createElement("div"); d.textContent = t; return d.innerHTML; };
 const passo = u => (u === "kg" ? 0.5 : 1);
 const preco = (p, u) => Number(p.unidades.find(x => x.unidade === u).preco);
-let produtos = [], cart = {}, dia = null, pedido = null;
+let produtos = [], cart = {}, dia = null, pedido = null, ultimoNumero = "";
 
 async function rpc(fn, args) {
   const r = await fetch(`${C.SUPABASE_URL}/rest/v1/rpc/${fn}`, {
@@ -100,6 +100,48 @@ function contato() {
   e.innerHTML = `Precisa falar com a gente? Ligue ou chame no WhatsApp:<br><strong>${f}</strong><br><a href="tel:+55${t}">Ligar</a> · <a href="https://wa.me/55${t}" target="_blank" rel="noopener">WhatsApp</a>`;
   e.hidden = false;
 }
+const seguro = u => /^https:\/\//.test(u || "");
+function local() {
+  const n = (C.LOCAL_NOME || "").trim(), m = (C.LOCAL_MAPS_URL || "").trim(), e = $("#local");
+  if (!n && !seguro(m)) { e.hidden = true; return; }
+  e.innerHTML = `<strong>📍 Onde nos encontrar</strong>${n ? "<br>" + esc(n) : ""}<br>Sábados, das 3h às 11h30` + (seguro(m) ? `<br><a href="${esc(m).replace(/"/g, "&quot;")}" target="_blank" rel="noopener">Abrir no mapa</a>` : "");
+  e.hidden = false;
+}
+const carrega = src => new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = src; });
+async function gerarComprovante() {
+  const W = 800, P = 52, c0 = document.createElement("canvas"); c0.width = W; c0.height = 3200;
+  const x = c0.getContext("2d"); x.fillStyle = "#fcf3e7"; x.fillRect(0, 0, W, 3200);
+  let y = P;
+  try { const im = await carrega("logo-vertical.png"), w = 300, h = im.height * w / im.width; x.drawImage(im, (W - w) / 2, y, w, h); y += h + 18; } catch (e) {}
+  const txt = (t, o = {}) => {
+    const s = o.s || 28; x.font = `${o.b ? "bold " : ""}${s}px ${o.f || "system-ui, Arial, sans-serif"}`; x.fillStyle = o.c || "#2a1717"; x.textAlign = o.a || "left";
+    const mx = W - 2 * P, ax = o.a === "center" ? W / 2 : P; let l = "";
+    const fl = () => { x.fillText(l, ax, y + s); y += s * 1.4; };
+    for (const w of String(t).split(" ")) { const t2 = l ? l + " " + w : w; if (x.measureText(t2).width > mx && l) { fl(); l = w; } else l = t2; }
+    if (l) fl(); y += o.g || 0;
+  };
+  const linha = () => { x.fillStyle = "#d9c3ae"; x.fillRect(P, y, W - 2 * P, 3); y += 22; };
+  txt("Comprovante de pedido", { b: true, s: 40, a: "center", c: "#8c1518", f: "Georgia, serif", g: 4 });
+  txt("Pedido nº " + ultimoNumero, { b: true, s: 56, a: "center", c: "#1f6b4a", g: 6 });
+  txt("Feito em " + new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" }), { s: 24, a: "center", c: "#6b5656", g: 14 });
+  linha(); txt("Cliente: " + pedido.nome, { b: true }); txt("Retirada: " + pedido.diaTxt, { g: 8 }); linha();
+  let tot = 0;
+  pedido.itens.forEach(i => { tot += i.valor; txt(`${i.nome}: ${fq(i.quantidade)} ${rot(i.unidade, i.quantidade)} (R$ ${brl(i.valor)})`); });
+  y += 4; linha(); txt("Total estimado: R$ " + brl(tot), { b: true, s: 34 }); txt("Valor final confirmado na barraca.", { s: 22, c: "#6b5656", g: 10 });
+  const n = (C.LOCAL_NOME || "").trim(), t = String(C.TELEFONE_BARRACA || "").replace(/\D/g, "");
+  if (n || t.length >= 10) linha();
+  if (n) txt("Local: " + n, { s: 26 });
+  txt("Sábados, das 3h às 11h30", { s: 26, g: 4 });
+  if (t.length >= 10) txt("Contato: " + (t.length >= 11 ? `(${t.slice(0, 2)}) ${t.slice(2, 7)}-${t.slice(7, 11)}` : `(${t.slice(0, 2)}) ${t.slice(2, 6)}-${t.slice(6, 10)}`), { s: 26, g: 10 });
+  y += 8; txt("Obrigado pela preferência!", { b: true, s: 30, a: "center", c: "#8c1518", f: "Georgia, serif" });
+  const out = document.createElement("canvas"); out.width = W; out.height = Math.ceil(y + P);
+  out.getContext("2d").drawImage(c0, 0, 0, W, out.height, 0, 0, W, out.height);
+  return new Promise(r => out.toBlob(r, "image/png"));
+}
+$("#baixar").onclick = async () => { const b = await gerarComprovante(), a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = `comprovante-pedido-${ultimoNumero}.png`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); };
+$("#compart").onclick = async () => { try { const b = await gerarComprovante(); await navigator.share({ files: [new File([b], `comprovante-pedido-${ultimoNumero}.png`, { type: "image/png" })], title: "Comprovante do pedido" }); } catch (e) {} };
+try { if (navigator.canShare && navigator.canShare({ files: [new File([""], "a.png", { type: "image/png" })] })) $("#compart").hidden = false; } catch (e) {}
+$("#home").onclick = e => { e.preventDefault(); if (!$("#p4").hidden) $("#nova").click(); else if ($("#p1").hidden) ir(1); else window.scrollTo(0, 0); };
 $("#confirmar").onclick = async function () {
   this.disabled = true; erro("#erro3");
   try {
@@ -108,7 +150,7 @@ $("#confirmar").onclick = async function () {
       const r = await rpc("criar_encomenda", { p_nome: pedido.nome, p_telefone: pedido.tel || null, p_retirada: pedido.dia || null, p_obs: pedido.obs || null, p_itens: pedido.itens.map(i => ({ produto_id: i.produto_id, quantidade: i.quantidade, unidade: i.unidade })) });
       numero = r.numero;
     }
-    $("#numero").textContent = numero; $("#obg").textContent = "Obrigado pelo seu pedido, " + pedido.nome.split(" ")[0] + "!"; contato(); $("#resumo2").innerHTML = lista(pedido.itens); ir(4);
+    $("#numero").textContent = numero; $("#obg").textContent = "Obrigado pelo seu pedido, " + pedido.nome.split(" ")[0] + "!"; contato(); ultimoNumero = numero; $("#resumo2").innerHTML = `<p>Retirada: <strong>${esc(pedido.diaTxt)}</strong></p>` + lista(pedido.itens); local(); ir(4);
   } catch (x) { erro("#erro3", x.message); }
   this.disabled = false;
 };
