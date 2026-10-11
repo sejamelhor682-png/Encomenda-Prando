@@ -40,6 +40,10 @@ details{margin-top:16px}summary{min-height:48px;display:flex;align-items:center;
 .demo{background:#fff3c4;padding:10px 16px;text-align:center;font-weight:600}
 .num{font-size:1.2rem;text-align:center}.num strong{font:800 3.2rem var(--slab);color:var(--grn)}
 a{color:var(--red);font-weight:700}
+#comp{position:fixed;inset:0;background:#000b;overflow:auto;z-index:20;padding:14px}
+#comp .mod{background:var(--bg);border-radius:14px;padding:14px;max-width:520px;margin:0 auto}
+#compimg{display:block;width:100%;height:auto;border-radius:10px;border:2px solid var(--bd)}
+.btn{display:flex;align-items:center;justify-content:center;min-height:64px;margin-top:16px;border-radius:14px;background:var(--grn);color:#fff;text-decoration:none;font-weight:700}
 .hp{position:absolute;left:-9999px;width:1px;height:1px}
 [hidden]{display:none!important}
 @media (prefers-reduced-motion:no-preference){.prod{transition:border-color .15s,background .15s}}

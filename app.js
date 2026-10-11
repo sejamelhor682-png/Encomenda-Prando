@@ -138,9 +138,21 @@ async function gerarComprovante() {
   out.getContext("2d").drawImage(c0, 0, 0, W, out.height, 0, 0, W, out.height);
   return new Promise(r => out.toBlob(r, "image/png"));
 }
-$("#baixar").onclick = async () => { const b = await gerarComprovante(), a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = `comprovante-pedido-${ultimoNumero}.png`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); };
-$("#compart").onclick = async () => { try { const b = await gerarComprovante(); await navigator.share({ files: [new File([b], `comprovante-pedido-${ultimoNumero}.png`, { type: "image/png" })], title: "Comprovante do pedido" }); } catch (e) {} };
-try { if (navigator.canShare && navigator.canShare({ files: [new File([""], "a.png", { type: "image/png" })] })) $("#compart").hidden = false; } catch (e) {}
+let blobAtual = null, urlAtual = "";
+function fechaComp() { $("#comp").hidden = true; if (urlAtual) URL.revokeObjectURL(urlAtual); urlAtual = ""; $("#compimg").removeAttribute("src"); }
+$("#baixar").onclick = async function () {
+  this.disabled = true; erro("#erro4");
+  try {
+    const b = await gerarComprovante(); if (!b) throw new Error("vazio");
+    blobAtual = b; if (urlAtual) URL.revokeObjectURL(urlAtual); urlAtual = URL.createObjectURL(b);
+    $("#compimg").src = urlAtual; $("#compbaixar").href = urlAtual; $("#compbaixar").download = `comprovante-pedido-${ultimoNumero}.png`;
+    $("#comp").hidden = false;
+  } catch (e) { erro("#erro4", "Não foi possível gerar o comprovante. Tire um print desta tela para guardar o número do pedido."); }
+  this.disabled = false;
+};
+$("#fechar").onclick = fechaComp;
+$("#compartilhar").onclick = async () => { try { await navigator.share({ files: [new File([blobAtual], `comprovante-pedido-${ultimoNumero}.png`, { type: "image/png" })], title: "Comprovante do pedido" }); } catch (e) {} };
+try { if (navigator.canShare && navigator.canShare({ files: [new File([""], "a.png", { type: "image/png" })] })) $("#compartilhar").hidden = false; } catch (e) {}
 $("#home").onclick = e => { e.preventDefault(); if (!$("#p4").hidden) $("#nova").click(); else if ($("#p1").hidden) ir(1); else window.scrollTo(0, 0); };
 $("#confirmar").onclick = async function () {
   this.disabled = true; erro("#erro3");

@@ -53,13 +53,19 @@
   <p class="num">Número do seu pedido<br><strong id="numero"></strong></p>
   <div id="resumo2" class="caixa"></div>
   <div id="local" class="caixa" hidden></div>
-  <button id="baixar" class="grande ok">Salvar comprovante do pedido</button>
-  <button id="compart" class="grande sec" hidden>Compartilhar comprovante</button>
+  <p id="erro4" class="erro" role="alert" hidden></p>
+  <button id="baixar" class="grande ok">Ver e salvar comprovante do pedido</button>
   <p>Anote o número ou tire um print desta tela.</p>
   <p id="contato" class="caixa" hidden></p>
   <button id="nova" class="grande">Fazer outra encomenda</button>
 </section>
 </main>
+<div id="comp" hidden role="dialog" aria-label="Comprovante do pedido"><div class="mod">
+  <p><strong>Seu comprovante</strong></p><img id="compimg" alt="Comprovante do pedido">
+  <p class="dica">Para guardar: <b>segure o dedo na imagem</b> e escolha “Salvar imagem”, ou tire um print da tela.</p>
+  <a id="compbaixar" class="btn" download="comprovante.png" href="#">Baixar imagem</a>
+  <button id="compartilhar" class="grande sec" hidden>Compartilhar</button>
+  <button id="fechar" class="grande sec">Fechar</button></div></div>
 <script src="config.js"></script>
 <script src="app.js"></script>
 </body>
